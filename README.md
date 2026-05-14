@@ -100,6 +100,19 @@ cmake --build build --parallel
 
 Бинарь: `./build/nvr_prototype config/nvr.yaml`.
 
+## Установка на сервер через GitHub
+
+Репозиторий: [https://github.com/SultanSulimanSerj/NVR](https://github.com/SultanSulimanSerj/NVR).
+
+1. На сервере один раз поставьте **nginx** (скрипт setup только копирует конфиги): `sudo apt-get install -y nginx`.
+2. Синхронизация кода: `chmod +x scripts/server_sync_from_github.sh && ./scripts/server_sync_from_github.sh`  
+   (или `NVR_GIT_URL=… NVR_CLONE_DIR=…` при необходимости).
+3. В **втором** SSH-сеансе запустите сторож, чтобы видеть «живую» сборку и сеть/git:  
+   `chmod +x scripts/build_hang_watch.sh && ./scripts/build_hang_watch.sh`  
+   (интервал в секундах: `./scripts/build_hang_watch.sh 30`).
+4. В **первом** сеансе: `cd ~/nvr-prototype && sudo ./scripts/setup_ubuntu_nvr.sh` (или с `--kiosk`).  
+   Долгое ожидание при **git-remote-http** и **cc=0** — часто клонирование зависимостей CMake с GitHub, а не зависание.
+
 ## Полная установка одной командой
 
 ```bash

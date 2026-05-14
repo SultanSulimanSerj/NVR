@@ -20,3 +20,5 @@ __pycache__/
 *.py[cod]
 webui/node_modules/
 nvr-shell/target/
+docker-build/
+docker-deb-out/
