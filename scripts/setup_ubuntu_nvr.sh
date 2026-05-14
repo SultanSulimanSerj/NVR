@@ -55,6 +55,7 @@ apt-get install -y --no-install-recommends \
     libopencv-dev \
     python3 python3-dev python3-numpy pybind11-dev \
     libyaml-cpp-dev libsqlite3-dev libsodium-dev libcurl4-openssl-dev nlohmann-json3-dev \
+    libasio-dev \
     libspdlog-dev libsqlitecpp-dev \
     libssl-dev \
     intel-media-va-driver-non-free vainfo i965-va-driver \

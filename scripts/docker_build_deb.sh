@@ -23,7 +23,7 @@ apt-get install -y --no-install-recommends \
   libavfilter-dev libavdevice-dev \
   libopencv-dev python3 python3-dev python3-numpy \
   libyaml-cpp-dev libsqlite3-dev libsodium-dev libcurl4-openssl-dev libssl-dev \
-  nlohmann-json3-dev libspdlog-dev libsqlitecpp-dev pybind11-dev
+  nlohmann-json3-dev libspdlog-dev libsqlitecpp-dev pybind11-dev libasio-dev
 rm -rf /src/docker-build
 mkdir -p /src/docker-build
 cd /src/docker-build
