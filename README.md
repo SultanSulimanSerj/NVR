@@ -111,7 +111,8 @@ cmake --build build --parallel
    `chmod +x scripts/build_hang_watch.sh && ./scripts/build_hang_watch.sh`  
    (интервал в секундах: `./scripts/build_hang_watch.sh 30`).
 4. В **первом** сеансе: `cd ~/nvr-prototype && sudo ./scripts/setup_ubuntu_nvr.sh` (или с `--kiosk`).  
-   Долгое ожидание при **git-remote-http** и **cc=0** — часто клонирование зависимостей CMake с GitHub, а не зависание.
+   Долгое ожидание при **git-remote-http** и **cc=0** — часто клонирование зависимостей CMake с GitHub, а не зависание.  
+   Строка CMake **«Could NOT find pybind11»** после обновления скрипта обычно исчезает: ставятся `pybind11-dev` и др.; если всё же видите её — дальше пойдёт **FetchContent** (скачивание pybind11 с GitHub), это нормально.
 
 ## Полная установка одной командой
 
