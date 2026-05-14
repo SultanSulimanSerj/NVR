@@ -1,0 +1,93 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard: { layout: us }
+  timezone: UTC
+  identity:
+    hostname: nvr
+    username: nvr
+    # Replaced at ISO build time: set NVR_AUTOINSTALL_PASSWORD_HASH to the output of
+    # `mkpasswd -m sha-512` (see appliance/build_iso.sh). Do not ship real hashes in git.
+    password: "PASSWORD_HASH_PLACEHOLDER"
+  ssh:
+    install-server: true
+    allow-pw: false
+  storage:
+    layout:
+      name: lvm
+      sizing-policy: all
+  packages:
+    - openssh-server
+    - ca-certificates
+    - curl
+    - jq
+    - smartmontools
+    - ufw
+    - nginx
+    - chrony
+    - python3
+    - python3-pip
+    - libavformat60
+    - libavcodec60
+    - libavutil58
+    - libswscale7
+    - libswresample4
+    - libopencv-core406
+    - libopencv-imgproc406
+    - libopencv-imgcodecs406
+    - libopencv-video406
+    - libsodium23
+    - libsqlite3-0
+    - libcurl4
+    - libwebkit2gtk-4.1-0
+    - libgtk-3-0
+    - libjavascriptcoregtk-4.1-0
+    - cage
+  user-data:
+    disable_root: true
+  late-commands:
+    # 1) sudoers — proper Cmnd_Alias syntax, validated via `visudo -c` so a typo
+    #    cannot brick post-install boot.
+    - |
+      curtin in-target --target=/target -- bash -c '
+        cat > /etc/sudoers.d/nvr <<EOF
+      Cmnd_Alias NVR_OPS = /usr/sbin/netplan apply, /usr/bin/timedatectl, /usr/bin/hostnamectl, /usr/sbin/smartctl, /usr/bin/systemctl, /usr/sbin/shutdown
+      nvr ALL=(root) NOPASSWD: NVR_OPS
+      Defaults!NVR_OPS !requiretty
+      EOF
+        chmod 0440 /etc/sudoers.d/nvr
+        visudo -cf /etc/sudoers.d/nvr
+      '
+    # 2) directories owned by *name* (UID may shift between releases).
+    - |
+      curtin in-target --target=/target -- bash -c '
+        mkdir -p /var/lib/nvr-prototype /etc/nvr-prototype /var/log/nvr-prototype
+        chown -R nvr:nvr /var/lib/nvr-prototype /var/log/nvr-prototype
+        chmod 0750 /var/lib/nvr-prototype /var/log/nvr-prototype
+        chown -R root:nvr /etc/nvr-prototype
+        chmod 0750 /etc/nvr-prototype
+      '
+    # 3) install the bundled .deb (carried in extras/) — only enable the service
+    #    AFTER apt-install succeeds, so a missing .deb cannot leave the box
+    #    booting into a non-existent unit forever.
+    - |
+      curtin in-target --target=/target -- bash -c '
+        set -e
+        if [ -f /cdrom/extras/nvr-prototype.deb ]; then
+          cp /cdrom/extras/nvr-prototype.deb /tmp/nvr.deb
+        fi
+        if [ -f /tmp/nvr.deb ]; then
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y /tmp/nvr.deb
+          systemctl enable nvr-prototype.service
+        fi
+      '
+    # 4) Generate one-shot setup token consumed by the first-run wizard.
+    - |
+      curtin in-target --target=/target -- bash -c '
+        umask 077
+        head -c 32 /dev/urandom | base64 | tr -d "\n=+/" > /etc/nvr-prototype/setup.token
+        chown root:nvr /etc/nvr-prototype/setup.token
+        chmod 0640 /etc/nvr-prototype/setup.token
+      '

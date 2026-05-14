@@ -1,0 +1,39 @@
+[Unit]
+Description=NVR Kiosk (cage + local UI client on primary TTY)
+After=nvr-prototype.service seatd.service network.target systemd-user-sessions.service getty@tty1.service
+Wants=nvr-prototype.service seatd.service
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+User=operator
+Group=operator
+PAMName=login
+# card0-only systems and render-node-only stacks (see audit).
+ExecCondition=/bin/sh -c 'test -e /dev/dri/card0 -o -e /dev/dri/card1 -o -e /dev/dri/renderD128'
+
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+Environment=WLR_NO_HARDWARE_CURSORS=1
+Environment=MOZ_ENABLE_WAYLAND=1
+Environment=GDK_BACKEND=wayland
+Environment=NVR_KIOSK_BASE_URL=https://nvr.local
+Environment=NVR_KIOSK_API_BASE=https://nvr.local
+
+ExecStartPre=/usr/bin/install -d -m 0700 -o operator -g operator /run/user/%U
+ExecStartPre=/usr/share/nvr-prototype/scripts/nvr_kiosk_bootstrap.sh
+
+ExecStart=/usr/share/nvr-prototype/scripts/nvr_kiosk_launcher.sh
+
+Restart=always
+RestartSec=3s
+
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+# Appliance boots with multi-user.target by default; graphical.target kept for desktop images.
+WantedBy=multi-user.target graphical.target

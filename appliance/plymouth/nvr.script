@@ -1,0 +1,38 @@
+// Self-contained splash without binary assets: a missing logo.png cannot break boot.
+// Renders the NVR wordmark, subtitle and an animated dot row using Plymouth's
+// built-in Image.Text rasterizer.
+
+Window.SetBackgroundTopColor(0.04, 0.04, 0.06);
+Window.SetBackgroundBottomColor(0.04, 0.04, 0.06);
+
+title = Image.Text("NVR", 1.0, 1.0, 1.0, 1.0, "Sans Bold 96");
+title_sprite = Sprite(title);
+title_sprite.SetPosition(Window.GetWidth()  / 2 - title.GetWidth()  / 2,
+                         Window.GetHeight() / 2 - title.GetHeight() - 16,
+                         1);
+
+subtitle = Image.Text("video appliance starting…", 0.78, 0.78, 0.82, 1.0, "Sans 18");
+subtitle_sprite = Sprite(subtitle);
+subtitle_sprite.SetPosition(Window.GetWidth()  / 2 - subtitle.GetWidth()  / 2,
+                             Window.GetHeight() / 2 + 8,
+                             1);
+
+phase = 0;
+fun refresh_callback() {
+    phase = (phase + 1) % 4;
+    dots = "";
+    for (i = 0; i < phase; i++) dots = dots + " •";
+    img = Image.Text(dots, 0.39, 0.41, 0.96, 1.0, "Sans Bold 22");
+    s = Sprite(img);
+    s.SetPosition(Window.GetWidth() / 2 - img.GetWidth() / 2,
+                   Window.GetHeight() / 2 + 64, 2);
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+fun message_callback(text) {
+    msg = Image.Text(text, 0.85, 0.85, 0.85, 1.0, "Sans 14");
+    msg_sprite = Sprite(msg);
+    msg_sprite.SetPosition(Window.GetWidth() / 2 - msg.GetWidth() / 2,
+                           Window.GetHeight() / 2 + 110, 3);
+}
+Plymouth.SetMessageFunction(message_callback);

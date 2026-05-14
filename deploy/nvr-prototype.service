@@ -1,0 +1,59 @@
+[Unit]
+Description=NVR Prototype (C++/FFmpeg/OpenCV)
+Documentation=https://example.invalid/nvr-prototype
+After=network-online.target time-sync.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+WatchdogSec=30s
+User=nvr
+Group=nvr
+SupplementaryGroups=video render
+
+WorkingDirectory=/var/lib/nvr-prototype
+ExecStart=/usr/bin/nvr_prototype /etc/nvr-prototype/nvr.yaml
+
+Restart=on-failure
+RestartSec=3s
+TimeoutStartSec=60s
+TimeoutStopSec=20s
+KillSignal=SIGTERM
+
+LimitNOFILE=131072
+LimitMEMLOCK=infinity
+LimitNICE=-5
+Nice=-5
+IOSchedulingClass=best-effort
+IOSchedulingPriority=2
+
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictNamespaces=true
+MemoryDenyWriteExecute=false
+SystemCallArchitectures=native
+SystemCallFilter=@system-service @network-io ~@privileged @resources
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SYS_NICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+ReadWritePaths=/var/lib/nvr-prototype /var/log/nvr-prototype /etc/nvr-prototype
+
+DeviceAllow=/dev/dri rw
+DevicePolicy=closed
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nvr-prototype
+
+[Install]
+WantedBy=multi-user.target

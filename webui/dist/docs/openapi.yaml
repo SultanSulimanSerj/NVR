@@ -1,0 +1,711 @@
+openapi: 3.0.3
+info:
+  title: NVR Appliance API
+  version: "1.2.10"
+  description: |
+    Production API for the NVR appliance (cameras, archive, events, AI,
+    system, notifications). All mutating endpoints require an admin or
+    operator JWT unless explicitly documented otherwise. The browser UI uses
+    HttpOnly cookies (`nvr_token`, `nvr_refresh`) for both access and refresh;
+    direct API consumers should send `Authorization: Bearer …`.
+    HTTP route handlers live in `src/api/Route*.cpp` (auth, cameras, archive,
+    notifications, system, stream) composed from `HttpServer::start()`.
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in:   cookie
+      name: nvr_token
+    setupToken:
+      type: apiKey
+      in:   header
+      name: X-Setup-Token
+  schemas:
+    LoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login: { type: string }
+        password: { type: string }
+        totp_code: { type: string }
+    AuthSessionResponse:
+      type: object
+      properties:
+        token: { type: string }
+        access_token: { type: string }
+        expires_in: { type: integer }
+        role: { type: string }
+        login: { type: string }
+        refresh_token:
+          type: string
+          description: Returned only when `Accept` contains `application/vnd.nvr.auth+json`; browsers rely on HttpOnly cookies.
+    LicenseStatus:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [trial, licensed, degraded]
+        max_channels: { type: integer }
+        channels_configured: { type: integer }
+        modules_bitmask: { type: integer }
+        signature_ok: { type: boolean }
+        license_file_present: { type: boolean }
+        attempted_verify: { type: boolean }
+        fingerprint_preview: { type: string }
+        expires_at:
+          type: string
+          nullable: true
+          description: RFC3339 UTC when exp>0; null when no expiry
+    NotifyDlqRow:
+      type: object
+      properties:
+        id: { type: integer }
+        ts: { type: string, format: date-time }
+        channel_id: { type: integer, nullable: true }
+        rule_id: { type: integer, nullable: true }
+        attempts: { type: integer }
+        last_error: { type: string }
+        payload_json: {}
+    Camera:
+      type: object
+      description: Camera JSON as returned by the HTTP API (subset documented here).
+      properties:
+        recording_mode:
+          type: string
+          enum: [continuous, motion, hybrid]
+          default: continuous
+          description: >
+            motion requires enable_motion; mux writes only while motion is latched (plus post_event_seconds).
+            hybrid keeps continuous mux semantics but expects motion for segment marking and events — enable_motion strongly recommended.
+        recording_schedule:
+          type: object
+          description: >
+            Weekly windows evaluated in host local time. Default `{"always":true}`.
+            If `always` is false, `weekdays` must list sun..sat with arrays of `{start,end}` as HH:MM (same day, start < end).
+        plan_x:
+          type: number
+          description: Normalized X on facility map (0..1); negative means unset.
+        plan_y:
+          type: number
+          description: Normalized Y on facility map (0..1); negative means unset.
+    StreamStats:
+      type: object
+      properties:
+        camera_id: { type: string }
+        fps: { type: number }
+        bitrate_kbps: { type: number }
+        pipeline_lag_ms: { type: number }
+        state: { type: number }
+        frames_received_total: { type: integer, format: int64 }
+        frames_dropped_total: { type: integer, format: int64 }
+        decoder_errors_total: { type: integer, format: int64 }
+        rtsp_reconnects_total: { type: integer, format: int64 }
+        bytes_in_total: { type: integer, format: int64 }
+        bytes_recorded_total: { type: integer, format: int64 }
+        inference_ms: { type: number }
+        inference_fps: { type: number }
+    ArchiveTimelineBucket:
+      type: object
+      properties:
+        bucket_start: { type: string }
+        bucket_start_unix: { type: integer }
+        segment_count: { type: integer }
+        event_count: { type: integer, description: events from journal in this bucket }
+        has_motion: { type: boolean }
+        duration_ms_total: { type: integer }
+    ArchiveRootHealth:
+      type: object
+      properties:
+        path: { type: string }
+        exists: { type: boolean }
+        writable: { type: boolean }
+        free_bytes: { type: integer, format: int64 }
+        capacity_bytes: { type: integer, format: int64 }
+    LiveLayoutRow:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        payload: { type: object, description: UI fields e.g. grid, cols }
+        updated_at: { type: string }
+    CameraCatalogEntry:
+      type: object
+      additionalProperties: true
+      properties:
+        vendor: { type: string }
+        model: { type: string }
+        firmware_notes: { type: string }
+        onvif_events: { type: string }
+        rtsp_notes: { type: string }
+    ArchiveTimelineResponse:
+      type: object
+      properties:
+        bucket_seconds: { type: integer }
+        bucket_minutes: { type: integer }
+        camera_id: { type: string }
+        from: { type: string }
+        to: { type: string }
+        buckets:
+          type: array
+          items: { $ref: '#/components/schemas/ArchiveTimelineBucket' }
+paths:
+  # ---- liveness & docs ------------------------------------------------------
+  /healthz:                  { get: { summary: liveness alias, security: [], responses: { "200": { description: ok } } } }
+  /api/v1/health:            { get: { summary: liveness, security: [], responses: { "200": { description: ok } } } }
+  /api/v1/health/live:       { get: { summary: live alias, security: [] } }
+  /api/v1/health/ready:      { get: { summary: readiness, security: [], responses: { "200": { description: ready }, "503": { description: not_ready } } } }
+  /metrics:                  { get: { summary: Prometheus metrics (loopback or admin), security: [{ bearerAuth: [] }] } }
+  /docs:                     { get: { summary: human-readable docs page, security: [] } }
+
+  # ---- auth -----------------------------------------------------------------
+  /api/v1/auth/login:
+    post:
+      security: []
+      summary: Issue access JWT, set HttpOnly cookies; optional refresh_token in JSON for vendor Accept type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSessionResponse' }
+        "401": { description: bad credentials }
+        "423": { description: rate-limited / disabled }
+  /api/v1/auth/refresh:      { post: { summary: rotate refresh token, security: [{ cookieAuth: [] }] } }
+  /api/v1/auth/logout:       { post: { summary: revoke current refresh and clear cookies } }
+  /api/v1/auth/me:           { get:  { summary: current user info } }
+  /api/v1/auth/external:
+    get:
+      summary: external IdP status stub (admin); see docs/SECURITY_EXTERNAL_AUTH.md
+      responses:
+        "200":
+          description: planned LDAP/OIDC integration surface
+        "403": { description: forbidden }
+  /api/v1/auth/change-password: { post: { summary: change own password, revokes all sessions } }
+  /api/v1/auth/totp/setup:   { post: { summary: generate a pending TOTP secret } }
+  /api/v1/auth/totp/verify:  { post: { summary: activate pending TOTP secret with a code } }
+  /api/v1/auth/totp/disable: { post: { summary: drop TOTP from this account } }
+
+  # ---- cameras --------------------------------------------------------------
+  /api/v1/cameras:
+    get:  { summary: list cameras }
+    post:
+      summary: create a new camera (operator+)
+      responses:
+        "201": { description: created }
+        "403":
+          description: license_channel_limit — would exceed trial or licensed max_channels
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string, example: license_channel_limit }
+                  max_channels: { type: integer }
+                  configured: { type: integer }
+  /api/v1/license:
+    get:
+      summary: offline license / trial status (no secrets)
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LicenseStatus' }
+  /api/v1/cameras/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    patch:  { summary: update camera }
+    delete: { summary: delete camera }
+  /api/v1/cameras/{id}/snapshot.jpg:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    get: { summary: latest snapshot, responses: { "200": { description: jpeg } } }
+  /api/v1/cameras/{id}/stream-stats:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    get:
+      summary: counters and gauges from the in-process observability registry
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StreamStats' }
+        "404": { description: unknown camera id }
+  /api/v1/cameras/{id}/onvif-events:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: limit, in: query, required: false, schema: { type: integer, default: 100, minimum: 1, maximum: 1000 } }
+    get:
+      summary: events for camera with type LIKE `onvif.%` (reserved for ONVIF analytics ingest)
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+        "404": { description: unknown camera id }
+  /api/v1/cameras/{id}/onvif-events/ingest:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      summary: MVP — insert ONVIF-style event into `events` and publish on EventBus (admin)
+      description: >
+        Body JSON optional fields `type` (default `onvif.mvp.signal`, must start with `onvif.`),
+        `severity` (default `info`), `payload` (object). Same pipeline surface as future camera PullPoint ingest.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type: { type: string, example: onvif.tns1.VideoSource.MotionAlarm }
+                severity: { type: string, example: warn }
+                payload: { type: object }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer, format: int64 }
+                  camera_id: { type: string }
+                  type: { type: string }
+        "400": { description: bad_json or invalid type prefix }
+        "403": { description: forbidden role }
+        "404": { description: unknown camera id }
+  /api/v1/cameras/{id}/onvif-events/pull-once:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      summary: ONVIF PullPoint — subscription + PullMessages; persist + EventBus (admin)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                events_service_url: { type: string, description: optional Events service XAddr override }
+      responses:
+        "200":
+          description: zero or more notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  camera_id: { type: string }
+                  count: { type: integer }
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type: { type: string }
+                        id: { type: integer, format: int64 }
+        "400": { description: onvif_host_required }
+        "403": { description: forbidden }
+        "404": { description: unknown camera id }
+  /api/v1/cameras/test-rtsp: { post: { summary: probe RTSP reachability } }
+
+  # ---- events / archive -----------------------------------------------------
+  /api/v1/events:
+    get: { summary: list events with filters }
+  /api/v1/events/{id}/ack:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+    post: { summary: acknowledge event }
+  /api/v1/events/ack-all:    { post: { summary: acknowledge all pending events (admin only) } }
+  /api/v1/events/search:
+    get:
+      summary: Search AI detections by object type (viewer+; bit 0 except object=motion without bit 0; bit 2 for face; object=onvif matches onvif.*)
+      responses:
+        "200": { description: ok }
+        "400": { description: object_required }
+        "403": { description: license_mod_required }
+  /api/v1/archive/timeline:
+    get:
+      summary: segment activity histogram for archive UI (bucketed)
+      parameters:
+        - { name: camera_id, in: query, required: true, schema: { type: string } }
+        - { name: from, in: query, required: true, schema: { type: string, description: ISO8601 lower bound } }
+        - { name: to, in: query, required: true, schema: { type: string, description: ISO8601 upper bound } }
+        - { name: bucket_minutes, in: query, required: false, schema: { type: integer, default: 5, minimum: 1, maximum: 1440 } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ArchiveTimelineResponse' }
+        "400": { description: missing camera_id or from/to }
+  /api/v1/archive/roots-health:
+    get:
+      summary: archive root paths health (operator+); probes free space and a temporary write
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roots:
+                    type: array
+                    items: { $ref: '#/components/schemas/ArchiveRootHealth' }
+        "401": { description: unauthorized }
+        "403": { description: insufficient role }
+  /api/v1/archive/segments:  { get:  { summary: list segments } }
+  /api/v1/archive/segments/{id}/play.mp4:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+    get: { summary: stream segment with Range support }
+  /api/v1/archive/segments/{id}/export.mp4:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+    get:
+      summary: download full segment as attachment (operator+); writes audit `archive.segment_export`
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+  /api/v1/archive/export:
+    post:
+      summary: concatenate segments overlapping time range (operator+); audit `archive.export_range`
+      description: >
+        Body JSON `camera_id`, `from`, `to` (ISO8601). Overlap query `ended_at > from AND started_at < to`.
+        Up to 24 segments; sum of declared `size_bytes` must not exceed 256 MiB; ffmpeg concat `-c copy`.
+        Optional `watermark_text` (string): if present, used as drawtext for this export only (empty string disables watermark for this request).
+        If omitted, `export_watermark_text` from archive config applies when non-empty.
+        Second ffmpeg pass may re-encode with `drawtext` (falls back to unwatermarked clip if drawtext fails).
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [camera_id, from, to]
+              properties:
+                camera_id: { type: string }
+                from: { type: string, description: ISO8601 lower bound }
+                to: { type: string, description: ISO8601 upper bound }
+                watermark_text:
+                  type: string
+                  maxLength: 512
+                  description: >
+                    Optional per-request overlay text. If the field is sent (including `""`), it overrides
+                    `export_watermark_text` from archive config for this export only.
+      responses:
+        "200":
+          description: combined MP4 attachment
+          content:
+            video/mp4:
+              schema: { type: string, format: binary }
+        "400": { description: bad_json, bad range, bad paths }
+        "403": { description: insufficient role }
+        "404": { description: no_segments }
+        "413": { description: export_too_large (JSON) }
+        "502": { description: ffmpeg or read failure }
+  /api/v1/config/motion:     { get: {}, put: {} }
+  /api/v1/config/archive:    { get: {}, put: {} }
+  /api/v1/config/map:
+    get:
+      summary: facility map background URL (viewer+)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan_image_url: { type: string }
+    put:
+      summary: set map.plan_image_url (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan_image_url]
+              properties:
+                plan_image_url: { type: string, maxLength: 2048 }
+      responses:
+        "200": { description: ok }
+        "400": { description: validation error }
+        "403": { description: forbidden }
+  /api/v1/config/features:
+    get:
+      summary: product feature flags (viewer+)
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mqtt_delivery: { type: string, enum: [stub, live] }
+    put:
+      summary: set feature flags (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mqtt_delivery]
+              properties:
+                mqtt_delivery: { type: string, enum: [stub, live] }
+      responses:
+        "200": { description: ok }
+
+  # ---- notifications --------------------------------------------------------
+  /api/v1/notifications/channels:
+    get:  { summary: list channels (secrets masked) }
+    post: { summary: create channel }
+  /api/v1/notifications/channels/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+    get:    { summary: fetch channel config with secrets masked as `********` }
+    patch:  { summary: update channel (omit a secret field to keep the existing value) }
+    delete: { summary: delete channel }
+  /api/v1/notifications/channels/{id}/test:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+    post: { summary: send a synthetic test notification }
+  /api/v1/notifications/rules:
+    get:  {}
+    post: {}
+  /api/v1/notifications/rules/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+    delete: {}
+
+  /api/v1/notifications/dead-letter:
+    get:
+      summary: list failed notification deliveries (admin)
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 200 } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/NotifyDlqRow' }
+
+  # ---- audit / users --------------------------------------------------------
+  /api/v1/audit:             { get: { summary: audit log (admin) } }
+  /api/v1/users:             { get: {}, post: {} }
+  /api/v1/users/{login}:
+    parameters: [{ name: login, in: path, required: true, schema: { type: string } }]
+    patch:  { summary: update user (password / disabled flag) }
+    delete: { summary: delete user (revokes all tokens) }
+  /api/v1/users/{login}/cameras:
+    parameters: [{ name: login, in: path, required: true, schema: { type: string } }]
+    get:
+      summary: per-user camera ACL (admin)
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  login: { type: string }
+                  camera_ids:
+                    type: array
+                    items: { type: string }
+    put:
+      summary: replace ACL camera ids for user (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [camera_ids]
+              properties:
+                camera_ids:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200": { description: ok }
+
+  /api/v1/live-layouts:
+    get:
+      summary: list saved live grid layouts for current user (viewer+)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LiveLayoutRow' }
+    post:
+      summary: upsert a named layout (viewer+)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, payload]
+              properties:
+                name: { type: string, maxLength: 128 }
+                payload: { type: object }
+      responses:
+        "200": { description: ok }
+        "400": { description: bad_layout_name or payload_object_required }
+  /api/v1/live-layouts/{name}:
+    parameters: [{ name: name, in: path, required: true, schema: { type: string } }]
+    delete:
+      summary: delete layout by name for current user
+      responses:
+        "200": { description: ok or not found (ok false) }
+        "404": { description: not found }
+
+  # ---- system ---------------------------------------------------------------
+  /api/v1/system:            { get: { summary: combined system bundle (info + storage + branding) } }
+  /api/v1/system/info:       { get: { summary: host info } }
+  /api/v1/system/network:    { get: {}, put: { summary: apply netplan YAML } }
+  /api/v1/system/time:       { get: {}, put: { summary: set timezone } }
+  /api/v1/system/field-bundle:
+    get:
+      summary: diagnostics JSON for field support (admin); includes archive root health and camera counts
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  time: { type: string }
+                  telemetry_opt_in: { type: boolean }
+                  archive_roots:
+                    type: array
+                    items: { $ref: '#/components/schemas/ArchiveRootHealth' }
+                  active_cameras: { type: integer }
+                  configured_cameras: { type: integer }
+        "403": { description: forbidden }
+  /api/v1/system/camera-catalog:
+    get:
+      summary: optional JSON compatibility catalog from disk (viewer+)
+      description: >
+        Reads JSON array from `NVR_CAMERA_CATALOG_PATH` or `/etc/nvr-prototype/camera_catalog.json`.
+        Sample file ships as `/usr/share/nvr-prototype/camera_catalog.sample.json`.
+      responses:
+        "200":
+          description: ok (items may be empty)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CameraCatalogEntry' }
+                  source: { type: string }
+                  loaded: { type: boolean }
+                  error: { type: string }
+  /api/v1/system/services/{name}/{action}:
+    parameters:
+      - { name: name, in: path, required: true, schema: { type: string } }
+      - { name: action, in: path, required: true, schema: { type: string, enum: [start, stop, restart, status] } }
+    post: {}
+  /api/v1/system/logs:       { get: { summary: journalctl tail } }
+  /api/v1/system/power/{action}:
+    parameters: [{ name: action, in: path, required: true, schema: { type: string, enum: [reboot, shutdown] } }]
+    post: {}
+
+  # ---- storage --------------------------------------------------------------
+  /api/v1/storage/disks:     { get: {} }
+  /api/v1/storage/disks/{dev}/smart:
+    parameters: [{ name: dev, in: path, required: true, schema: { type: string } }]
+    get: {}
+  /api/v1/storage/usage:     { get: {} }
+
+  # ---- ONVIF ----------------------------------------------------------------
+  /api/v1/onvif/discover:    { get: {} }
+  /api/v1/onvif/enumerate-streams:
+    post:
+      summary: Resolve Media service, list profiles, return RTSP URIs (admin)
+      description: >
+        Body JSON optional `device_url` (full device service URL), or `xaddrs` (space-separated from WS-Discovery),
+        or `host` + optional `port` (default 80). Fields `user` and `pass` for WS-Security digest on device/media.
+      responses:
+        "200": { description: ok }
+        "400": { description: bad_json or host_or_device_url_required }
+        "403": { description: insufficient role }
+        "502": { description: onvif_enumerate_failed }
+  /api/v1/onvif/device-time-sync:
+    post:
+      summary: set device clock to host UTC via ONVIF Device service (admin)
+      description: Body JSON same shape as enumerate-streams (`device_url`, `host`+`port`, `xaddrs`, `user`, `pass`).
+      responses:
+        "200": { description: ok }
+        "400": { description: bad_json }
+        "403": { description: forbidden }
+        "502": { description: device rejected time set }
+  /api/v1/onvif/{cam_id}/ptz:
+    parameters: [{ name: cam_id, in: path, required: true, schema: { type: string } }]
+    post: { summary: PTZ continuous move / stop }
+
+  # ---- AI -------------------------------------------------------------------
+  /api/v1/ai/models:
+    get:
+      summary: List ONNX/model registry (admin; offline license AI bit 0)
+      responses:
+        "200": { description: ok }
+        "403": { description: license_mod_required }
+    post:
+      summary: Register model row (admin; bit 0)
+      responses:
+        "201": { description: created }
+        "403": { description: license_mod_required }
+  /api/v1/ai/models/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+    patch:
+      summary: Update model (e.g. enabled flag; admin; bit 0)
+      responses:
+        "200": { description: ok }
+        "403": { description: license_mod_required }
+  /api/v1/ai/faces:
+    get:
+      summary: List face gallery persons (operator+; offline license AI bit 2)
+      responses:
+        "200": { description: ok }
+        "403": { description: license_mod_required }
+
+  # ---- branding / setup / kiosk --------------------------------------------
+  /api/v1/branding:          { get:  { summary: branding (logo, product_name), security: [] } }
+  /api/v1/setup/status:      { get:  { summary: first_run flag, security: [] } }
+  /api/v1/setup/finalize:
+    post:
+      summary: First-run wizard finalize (requires X-Setup-Token)
+      security: [{ setupToken: [] }]
+  /api/v1/kiosk/token:       { post: { summary: long-lived viewer token for kiosk } }
+  /api/v1/kiosk/exchange:    { post: { summary: exchange kiosk token for an HttpOnly access cookie, security: [] } }
+
+  # ---- streams --------------------------------------------------------------
+  /live/{camera}/{file}:
+    parameters:
+      - { name: camera, in: path, required: true, schema: { type: string } }
+      - { name: file,   in: path, required: true, schema: { type: string } }
+    get: { summary: HLS playlist / fMP4 segment }
+  /api/v1/ws:
+    get:
+      summary: WebSocket for real-time events (camera state, motion, AI hits)
+      responses: { "101": { description: switching protocols } }

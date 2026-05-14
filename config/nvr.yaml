@@ -1,0 +1,61 @@
+logging_level: info
+
+archive:
+  root_path: /var/lib/nvr-prototype/archive
+  segment_minutes: 60
+  target_usage_ratio: 0.80
+  release_to_ratio: 0.78
+  min_keep_minutes: 15
+  file_prefix: "cam_"
+  file_extension: ".mp4"
+
+motion:
+  downscale_width: 640
+  downscale_height: 360
+  history: 300
+  var_threshold: 16.0
+  detect_shadows: false
+  min_area_ratio: 0.005
+  cooldown_seconds: 5
+  snapshot_dir: /var/lib/nvr-prototype/snapshots
+  snapshot_jpeg_quality: 85
+
+python:
+  enabled: true
+  script_path: /usr/share/nvr-prototype/scripts/script.py
+  callable: on_motion
+  include_frame: false
+  queue_capacity: 128
+
+http:
+  bind_address: "127.0.0.1"
+  port_http: 8080
+  jwt_access_ttl_seconds: 900
+  jwt_refresh_ttl_seconds: 43200
+  http_worker_threads: 0
+
+license:
+  file: /etc/nvr-prototype/license.lic
+  public_key: /etc/nvr-prototype/license.pub
+  trial_max_channels: 8
+
+cameras:
+  - id: cam01
+    name: "Front door"
+    rtsp_url: "rtsp://USER:PASSWORD@192.168.1.10:554/Streaming/Channels/101"
+    preferred_hw: qsv
+    analysis_fps: 6
+    enable_motion: true
+    enable_recording: true
+
+  - id: cam02
+    name: "Backyard"
+    rtsp_url: "rtsp://USER:PASSWORD@192.168.1.11:554/Streaming/Channels/101"
+    preferred_hw: auto
+    analysis_fps: 5
+    enable_motion: true
+    enable_recording: true
+
+database:
+  path: /var/lib/nvr-prototype/nvr.db
+  master_key_file: /etc/nvr-prototype/master.key

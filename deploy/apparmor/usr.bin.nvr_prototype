@@ -1,0 +1,89 @@
+# AppArmor profile for the NVR daemon. Default to enforce mode after the unit
+# is installed: `aa-enforce /etc/apparmor.d/usr.bin.nvr_prototype`.
+#
+# The profile is intentionally conservative: read-only access to /usr and
+# /etc/nvr-prototype (config/cert), full RW on its working dirs, and access to
+# /dev/dri for QSV/VAAPI. systemd already strips most caps; AppArmor adds a
+# second wall in case of process compromise.
+#
+# Tested on Ubuntu 24.04. Adjust paths if you re-prefix the install.
+
+#include <tunables/global>
+
+/usr/bin/nvr_prototype {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+  #include <abstractions/openssl>
+  #include <abstractions/ssl_certs>
+  #include <abstractions/python>
+
+  capability net_bind_service,
+  capability sys_nice,
+
+  # Read-only system tree (binaries, libs, fonts, locale, etc.).
+  /usr/**                                      mr,
+  /etc/ld.so.cache                             r,
+  /etc/ld.so.conf                              r,
+  /etc/ld.so.conf.d/                           r,
+  /etc/ld.so.conf.d/**                         r,
+  /etc/resolv.conf                             r,
+  /etc/hosts                                   r,
+  /etc/nsswitch.conf                           r,
+  /etc/ssl/certs/                              r,
+  /etc/ssl/certs/**                            r,
+
+  # Configuration & secrets (read-only).
+  /etc/nvr-prototype/                          r,
+  /etc/nvr-prototype/**                        r,
+
+  # Runtime state — full RW, but quota'd by the FS.
+  /var/lib/nvr-prototype/                      rwk,
+  /var/lib/nvr-prototype/**                    rwk,
+  /var/log/nvr-prototype/                      rwk,
+  /var/log/nvr-prototype/**                    rwk,
+  /var/cache/nvr-prototype/                    rwk,
+  /var/cache/nvr-prototype/**                  rwk,
+
+  # Tmp under PrivateTmp/.
+  owner /tmp/**                                rwk,
+  owner /tmp/                                  rw,
+
+  # Hardware video accel.
+  /dev/dri/                                    r,
+  /dev/dri/*                                   rw,
+  /run/udev/data/**                            r,
+
+  # systemd notify socket (NOTIFY_SOCKET).
+  /run/systemd/notify                          w,
+  /run/systemd/journal/socket                  w,
+  /run/systemd/journal/stdout                  w,
+
+  # signalfd, eventfd, epoll – ptrace prevention through `deny ptrace`.
+  deny ptrace,
+  deny capability sys_admin,
+  deny capability sys_module,
+
+  # External tools the daemon spawns via posix_spawnp (allowlist).
+  /usr/bin/systemctl                            ix,
+  /usr/bin/journalctl                           ix,
+  /usr/bin/timedatectl                          ix,
+  /usr/bin/hostnamectl                          ix,
+  /usr/bin/lsblk                                ix,
+  /usr/bin/df                                   ix,
+  /usr/sbin/smartctl                            ix,
+  /usr/sbin/netplan                             ix,
+  /usr/sbin/shutdown                            ix,
+  /usr/bin/poweroff                             ix,
+  /usr/sbin/reboot                              ix,
+  /usr/bin/sudo                                 ix,
+
+  # Networking — outbound RTSP, HTTPS, SMTP, MQTT.
+  network inet stream,
+  network inet6 stream,
+  network inet dgram,
+  network inet6 dgram,
+  network netlink raw,
+
+  # Final catch-all so the profile compiles even when extra deps appear.
+  #include <local/usr.bin.nvr_prototype>
+}

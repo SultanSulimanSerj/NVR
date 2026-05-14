@@ -1,0 +1,99 @@
+{
+  "title": "NVR Appliance",
+  "schemaVersion": 38,
+  "refresh": "10s",
+  "tags": ["nvr"],
+  "templating": {
+    "list": [
+      {
+        "name":   "datasource",
+        "type":   "datasource",
+        "query":  "prometheus",
+        "label":  "Prometheus",
+        "current": { "selected": true, "text": "Prometheus", "value": "Prometheus" }
+      },
+      {
+        "name":  "camera",
+        "type":  "query",
+        "label": "Camera",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query":   "label_values(nvr_camera_state, camera)",
+        "includeAll": true, "multi": true, "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type":  "stat",
+      "title": "Active cameras",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "count(nvr_camera_state == 2)", "refId": "A" }]
+    },
+    {
+      "type":  "stat",
+      "title": "Events / 5m",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "sum(increase(nvr_camera_motion_events_total[5m]))", "refId": "A" }]
+    },
+    {
+      "type":  "timeseries",
+      "title": "Camera state (0=down,1=connecting,2=streaming,3=degraded)",
+      "description": "Enum: 0 — RTSP unreachable; 1 — handshake/initial connect; 2 — streaming healthy; 3 — degraded (decode errors, low FPS).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "nvr_camera_state{camera=~\"$camera\"}", "legendFormat": "{{camera}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "min": 0, "max": 3 } }
+    },
+    {
+      "type":  "timeseries",
+      "title": "FPS by camera",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "nvr_camera_fps{camera=~\"$camera\"}", "legendFormat": "{{camera}}", "refId": "A" }]
+    },
+    {
+      "type":  "timeseries",
+      "title": "Inference latency (ms)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "nvr_camera_inference_ms{camera=~\"$camera\"}", "legendFormat": "{{camera}}", "refId": "A" }]
+    },
+    {
+      "type":  "gauge",
+      "title": "Archive usage",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "nvr_archive_used_ratio", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0, "max": 1,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green",  "value": null },
+            { "color": "yellow", "value": 0.75 },
+            { "color": "red",    "value": 0.9  }
+          ]}
+        }
+      }
+    },
+    {
+      "type":  "timeseries",
+      "title": "Bitrate by camera (kbps)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "nvr_camera_bitrate_kbps{camera=~\"$camera\"}", "legendFormat": "{{camera}}", "refId": "A" }]
+    },
+    {
+      "type":  "timeseries",
+      "title": "RTSP reconnects",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "rate(nvr_camera_rtsp_reconnects_total{camera=~\"$camera\"}[5m])", "legendFormat": "{{camera}}", "refId": "A" }]
+    },
+    {
+      "type":  "stat",
+      "title": "Notifications failed (24h)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "sum(increase(nvr_notifications_failed_total[24h]))", "refId": "A" }]
+    },
+    {
+      "type":  "stat",
+      "title": "Notifications dropped (24h)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "sum(increase(nvr_notifications_dropped_total[24h]))", "refId": "A" }]
+    }
+  ]
+}

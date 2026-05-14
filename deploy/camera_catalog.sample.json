@@ -1,0 +1,16 @@
+[
+  {
+    "vendor": "ExampleVendor",
+    "model": "IPC-Example-4K",
+    "firmware_notes": "ONVIF 2.0 events: PullPoint OK; Digest auth required on firmware < 2.3",
+    "onvif_events": "MotionAlarm via tns1:VideoSource",
+    "rtsp_notes": "Main stream: ProfileToken MainStream; sub: Profile_2"
+  },
+  {
+    "vendor": "AnotherBrand",
+    "model": "Bullet-X",
+    "firmware_notes": "SetSystemDateAndTime UTC manual rejected — use NTP on camera",
+    "onvif_events": "Subscribe often times out; prefer pull-once cron",
+    "rtsp_notes": "rtsp://…/Streaming/Channels/101"
+  }
+]

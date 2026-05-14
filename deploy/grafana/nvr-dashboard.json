@@ -1,0 +1,26 @@
+{
+  "title": "NVR prototype",
+  "templating": {
+    "list": [
+      {
+        "name": "disk_warn",
+        "type": "constant",
+        "label": "Disk warn %",
+        "value": "75",
+        "options": [{ "value": "75", "text": "75" }]
+      },
+      {
+        "name": "disk_crit",
+        "type": "constant",
+        "label": "Disk crit %",
+        "value": "90",
+        "options": [{ "value": "90", "text": "90" }]
+      }
+    ]
+  },
+  "panels": [],
+  "schemaVersion": 39,
+  "version": 1,
+  "uid": "nvr-prototype-vars",
+  "tags": ["nvr"]
+}

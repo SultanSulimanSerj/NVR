@@ -1,0 +1,171 @@
+{
+  "app": { "name": "NVR", "offline": "Нет сети: запросы к API могут не проходить." },
+  "common": {
+    "save": "Сохранить", "cancel": "Отмена", "edit": "Редактировать", "delete": "Удалить",
+    "add": "Добавить", "all": "Все", "search": "Поиск", "loading": "Загрузка...",
+    "saved": "Сохранено", "close": "Закрыть"
+  },
+  "nav": {
+    "dashboard": "Главная", "live": "Live", "archive": "Архив", "events": "События",
+    "cameras": "Камеры", "motion": "Детектор движения", "storage": "Хранилище",
+    "map": "Карта",
+    "notifications": "Уведомления", "dlq": "Ошибки уведомлений", "users": "Пользователи", "system": "Система",
+    "ai": "AI / Аналитика", "audit": "Журнал действий", "logout": "Выход"
+  },
+  "login": {
+    "title": "Вход", "user": "Логин", "password": "Пароль", "totp_optional": "TOTP (если включено)",
+    "submit": "Войти", "failed": "Неверные учётные данные"
+  },
+  "dash": {
+    "cameras": "Камеры", "active": "активно", "events_24h": "События",
+    "unack": "не подтверждено", "archive_usage": "Архив", "uptime": "Uptime",
+    "recent_events": "Последние события", "cameras_status": "Состояние камер",
+    "host_info": "Хост", "license": "Лицензия"
+  },
+  "cameras": {
+    "name": "Имя", "features": "Возможности", "add": "Добавить камеру",
+    "edit_camera": "Камера", "preferred_hw": "HW-ускорение",
+    "enable_motion": "Детектор движения", "enable_recording": "Запись",
+    "recording_mode": "Режим записи",     "recording_continuous": "Непрерывная",
+    "recording_motion": "По движению (pre/post)",
+    "recording_hybrid": "Непрерывная + маркировка по движению",
+    "enable_substream": "Sub-stream (HLS)", "sub_rtsp_url": "Sub RTSP URL",
+    "sub_bitrate": "Sub bitrate (kbps)", "confirm_delete": "Удалить камеру?",
+    "test": "Проверить", "unreachable": "Недоступно", "onvif_import": "ONVIF",
+    "onvif_discover": "Поиск устройств ONVIF",
+    "nothing_found": "Не найдено",
+    "onvif_back": "Назад к списку",
+    "onvif_credentials": "Учётные данные ONVIF",
+    "onvif_fetch_rtsp": "Получить RTSP (GetStreamUri)",
+    "onvif_streams_title": "Профили и URI",
+    "onvif_use_best_pair": "Лучший + второй как суб",
+    "onvif_use_main_only": "Только основной",
+    "onvif_apply_form": "В форму редактирования",
+    "onvif_create_now": "Создать камеру сейчас",
+    "onvif_created": "Камера создана",
+    "onvif_device_label": "Устройство",
+    "onvif_apply_best_main": "В форму: только лучший поток",
+    "onvif_create_best_main": "Создать: только лучший поток",
+    "onvif_fill_from_form_main": "Подставить RTSP из ONVIF (лучший)",
+    "onvif_fill_from_form_pair": "Подставить RTSP (лучший + второй в Sub)",
+    "onvif_host_required": "Укажите ONVIF host",
+    "onvif_no_streams": "Потоки не получены — проверьте доступ и учётные данные",
+    "onvif_urls_applied": "RTSP подставлен из ONVIF",
+    "onvif_sync_time": "Синхронизировать время на камере (ONVIF)",
+    "onvif_time_sync_ok": "Запрос времени отправлен (проверьте камеру)",
+    "onvif_time_sync_fail": "Камера не приняла установку времени",
+    "stream_stats": "Поток",
+    "stream_state_decode": "Декодирование",
+    "stream_state_idle": "Простой / переподключение",
+    "stream_state_error": "Ошибка / ожидание",
+    "schedule_title": "Расписание записи",
+    "schedule_host_tz": "Окна проверяются в локальном времени сервера (не UTC).",
+    "schedule_always": "Круглосуточно (без расписания)",
+    "schedule_no_windows": "Нет окон — запись в этот день не ведётся",
+    "schedule_start": "С",
+    "schedule_end": "По",
+    "schedule_add_window": "Добавить интервал",
+    "schedule_remove_window": "Удалить",
+    "schedule_badge": "Расписание",
+    "schedule_day": {
+      "sun": "Вс",
+      "mon": "Пн",
+      "tue": "Вт",
+      "wed": "Ср",
+      "thu": "Чт",
+      "fri": "Пт",
+      "sat": "Сб"
+    },
+    "catalog_title": "Справочник совместимости (JSON)",
+    "catalog_hint": "Файл: /etc/nvr-prototype/camera_catalog.json или переменная NVR_CAMERA_CATALOG_PATH. Пример: /usr/share/nvr-prototype/camera_catalog.sample.json",
+    "catalog_empty": "Каталог не загружен (файл отсутствует или пустой массив).",
+    "catalog_vendor": "Производитель",
+    "catalog_model": "Модель",
+    "catalog_notes": "Заметки"
+  },
+  "live_dash": {
+    "presets": "Сетка",
+    "save": "Сохранить текущую",
+    "name_prompt": "Имя макета",
+    "auto": "Авто",
+    "remove": "Удалить"
+  },
+  "archive": {
+    "camera": "Камера", "from": "С", "to": "По", "started": "Начало",
+    "duration": "Длительность", "size": "Размер", "motion": "Движение",
+    "play": "Воспроизвести", "download": "Скачать", "export": "Экспорт MP4",
+    "export_range": "Экспорт диапазона (MP4)", "export_range_done": "Экспорт диапазона сохранён",
+    "empty": "Нет сегментов",
+    "timeline": "Активность по времени", "timeline_empty": "Нет данных в выбранном окне",
+    "timeline_hint": "Для полосы активности выберите конкретную камеру и интервал «С» / «По».",
+    "timeline_click_hint": "Клик по столбцу сужает диапазон к этому интервалу.",
+    "timeline_range_applied": "Интервал «С/По» обновлён по выбранному бакету — можно искать сегменты или экспортировать диапазон.",
+    "timeline_legend_motion": "Верх: движение в сегментах; низ: события из журнала",
+    "recent_clipped_events": "События с клипом (выберите камеру)",
+    "jump_range": "Подобрать интервал ±45 с",
+    "no_clipped_events": "Нет событий с клипом за последние ответы API"
+  },
+  "events": {
+    "time": "Время", "type": "Тип", "severity": "Важность", "snapshot": "Снимок",
+    "ack": "Подтвердить", "ack_all": "Подтвердить все", "has_clip": "С клипом"
+  },
+  "motion": {
+    "global": "Глобальные параметры", "roi": "ROI (области)",
+    "start_poly": "Начать полигон", "finish_poly": "Завершить", "roi_name": "Имя области"
+  },
+  "storage": {
+    "quota": "Квота архива", "archive_usage": "Использование архива", "disks": "Диски",
+    "roots_health": "Корни архива (доступность и место)",
+    "root_exists_yes": "путь есть",
+    "root_exists_no": "нет пути",
+    "root_writable_yes": "запись ОК",
+    "root_writable_no": "нет записи",
+    "root_free": "свободно"
+  },
+  "notify": {
+    "channels": "Каналы", "rules": "Правила", "channel": "Канал", "rule": "Правило",
+    "test": "Тест", "dlq_title": "Записи, не доставленные в канал (DLQ)"
+  },
+  "users": {
+    "add": "Добавить пользователя", "reset_password": "Сменить пароль",
+    "enable": "Включить", "disable": "Отключить", "confirm_delete": "Удалить?",
+    "my_account": "Мой аккаунт", "old_password": "Старый пароль",
+    "new_password": "Новый пароль", "change_password": "Сменить пароль",
+    "totp": "Двухфакторная аутентификация (TOTP)",
+    "totp_setup": "Включить TOTP", "totp_code": "Код",
+    "totp_verify": "Подтвердить", "password_too_short": "Пароль слишком короткий"
+  },
+  "system": {
+    "info": "Информация", "network": "Сеть", "time": "Время",
+    "services": "Службы", "logs": "Журналы", "power": "Питание", "license_tab": "Лицензия",
+    "field_bundle": "Скачать field bundle (JSON)"
+  },
+  "map": {
+    "floor_plan": "План объекта",
+    "plan_background": "Фон плана",
+    "plan_url_label": "URL изображения плана",
+    "hint": "Координаты задаются в карточке камеры (plan_x / plan_y от 0 до 1). Отрицательные значения скрывают маркер.",
+    "empty": "Нет камер с координатами на карте."
+  },
+  "ai": {
+    "models": "Модели", "faces": "Лица", "search": "Поиск", "enroll": "Добавить",
+    "object": "Объект"
+  },
+  "errors": {
+    "license_channel_limit": "Достигнут лимит камер по лицензии: максимум {{max}}, в базе {{configured}}.",
+    "motion_recording_requires_enable_motion": "Режим «По движению» требует включённый детектор движения.",
+    "hybrid_requires_enable_motion": "Гибридная запись требует включённый детектор движения (маркировка сегментов и события).",
+    "license_mod_required": "Нужна лицензия с модулем AI (см. docs/LICENSE_TICKET.md)."
+  },
+  "license": {
+    "mode": "Режим",
+    "modes": { "trial": "Пробный", "licensed": "Активирована", "degraded": "Ошибка билета" },
+    "max_channels": "Макс. камер",
+    "configured": "Камер в базе",
+    "modules": "Маска модулей",
+    "expires": "Истекает",
+    "never": "без срока",
+    "signature_ok": "Подпись ОК",
+    "doc_hint": "Формат офлайн-билета и выпуск ключей: файл docs/LICENSE_TICKET.md в репозитории проекта."
+  }
+}

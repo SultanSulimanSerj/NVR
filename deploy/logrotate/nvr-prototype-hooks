@@ -1,0 +1,11 @@
+# Python motion-hook log (see scripts/script.py, NVR_HOOK_LOG).
+/var/log/nvr-prototype/hooks.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su root adm
+}

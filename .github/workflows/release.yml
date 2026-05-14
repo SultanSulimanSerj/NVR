@@ -1,0 +1,116 @@
+name: release
+
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  deb:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            nvr-shell/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('nvr-shell/Cargo.lock', 'nvr-shell/Cargo.toml') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('webui/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config ninja-build \
+            libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libswresample-dev \
+            libopencv-dev pybind11-dev python3-dev python3-numpy \
+            libsqlite3-dev libsodium-dev libcurl4-openssl-dev nlohmann-json3-dev \
+            libssl-dev nodejs npm \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libjavascriptcoregtk-4.1-dev
+      - name: Build webui
+        run: |
+          cd webui && npm ci && npm run build
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DNVR_BUILD_TESTS=ON -DNVR_BUILD_KIOSK_SHELL=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Package .deb
+        run: (cd build && cpack -G DEB)
+      - name: Compute sha256
+        run: |
+          mkdir -p dist
+          cp build/*.deb dist/
+          (cd dist && sha256sum *.deb > SHA256SUMS-deb.txt)
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nvr-deb
+          path: dist/
+          retention-days: 7
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: dist
+          format: spdx-json
+          output-file: dist/nvr-prototype.sbom.spdx.json
+      - name: Attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: dist/*.deb
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.deb
+            dist/SHA256SUMS-deb.txt
+            dist/nvr-prototype.sbom.spdx.json
+          generate_release_notes: true
+
+  iso:
+    runs-on: ubuntu-24.04
+    needs: deb
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install xorriso
+        run: sudo apt-get update && sudo apt-get install -y xorriso curl
+      - name: Download deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nvr-deb
+          path: extras
+      - name: Download Ubuntu Server ISO
+        run: |
+          curl -fL -o ubuntu.iso \
+            https://releases.ubuntu.com/24.04/ubuntu-24.04-live-server-amd64.iso
+      - name: Build appliance ISO
+        run: |
+          chmod +x appliance/build_iso.sh
+          ls -la extras
+          ./appliance/build_iso.sh ubuntu.iso nvr-appliance.iso extras
+      - name: Compute sha256
+        run: sha256sum nvr-appliance.iso > nvr-appliance.iso.sha256
+      - name: Attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: nvr-appliance.iso
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            nvr-appliance.iso
+            nvr-appliance.iso.sha256

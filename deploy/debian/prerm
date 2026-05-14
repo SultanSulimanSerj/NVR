@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+if [ "$1" = "remove" ]; then
+    deb-systemd-invoke stop nvr-prototype.service >/dev/null || true
+    deb-systemd-helper disable nvr-prototype.service >/dev/null || true
+fi

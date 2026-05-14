@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=NVR
+Description=NVR appliance splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/nvr
+ScriptFile=/usr/share/plymouth/themes/nvr/nvr.script

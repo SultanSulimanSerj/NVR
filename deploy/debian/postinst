@@ -1,0 +1,76 @@
+#!/bin/sh
+set -e
+
+# Create a system user for the daemon (idempotent).
+if ! getent passwd nvr >/dev/null; then
+    adduser --system --group --home /var/lib/nvr-prototype \
+            --shell /usr/sbin/nologin nvr
+fi
+
+# Allow the kiosk operator account to talk to the daemon via journalctl etc.
+# A system "operator" account is created elsewhere (autoinstall); do nothing
+# special here.
+
+install -d -o nvr -g nvr -m 0750 \
+    /var/lib/nvr-prototype \
+    /var/log/nvr-prototype \
+    /var/lib/nvr-prototype/archive \
+    /var/lib/nvr-prototype/hls \
+    /var/lib/nvr-prototype/snapshots \
+    /var/lib/nvr-prototype/events
+install -d -o root -g nvr -m 0750 /etc/nvr-prototype
+
+# Make sure secrets are readable only by root + nvr group when they exist.
+for f in /etc/nvr-prototype/jwt.secret \
+         /etc/nvr-prototype/master.key \
+         /etc/nvr-prototype/initial-admin.password \
+         /etc/nvr-prototype/setup.token ; do
+    if [ -f "$f" ]; then
+        chgrp nvr "$f" 2>/dev/null || true
+        chmod 0640 "$f" 2>/dev/null || true
+    fi
+done
+# initial-admin.password: root only (daemon must not read it).
+# setup.token: daemon (user nvr, group nvr) must read it for /api/v1/setup/finalize.
+for f in /etc/nvr-prototype/initial-admin.password; do
+    [ -f "$f" ] && chmod 0600 "$f" || true
+done
+for f in /etc/nvr-prototype/setup.token; do
+    if [ -f "$f" ]; then
+        chgrp nvr "$f" 2>/dev/null || true
+        chmod 0640 "$f" 2>/dev/null || true
+    fi
+done
+
+if [ -d /etc/logrotate.d ] && [ -f /usr/share/nvr-prototype/logrotate/nvr-prototype-hooks ]; then
+    cp -f /usr/share/nvr-prototype/logrotate/nvr-prototype-hooks /etc/logrotate.d/nvr-prototype-hooks || true
+fi
+
+# Run schema migrations before the service starts. The binary applies
+# pending migrations on every boot; here we trigger an explicit run while
+# the operator is watching `apt`.
+if [ -x /usr/bin/nvr_prototype ] && [ -f /etc/nvr-prototype/nvr.yaml ]; then
+    /usr/bin/nvr_prototype --migrate-only /etc/nvr-prototype/nvr.yaml \
+        >>/var/log/nvr-prototype/migrate.log 2>&1 || true
+fi
+
+# Keep nginx X-Accel `alias` in sync with archive.root_path (see deploy/nginx/nvr.conf).
+if [ -x /usr/bin/nvr_sync_nginx_archive_accel.sh ]; then
+    /usr/bin/nvr_sync_nginx_archive_accel.sh >>/var/log/nvr-prototype/postinst.log 2>&1 || true
+fi
+
+# (Re)load systemd units, enable + restart only after migrations succeeded.
+if [ -d /run/systemd/system ]; then
+    deb-systemd-helper enable nvr-prototype.service       >/dev/null || true
+    deb-systemd-helper enable nvr-db-check.service        >/dev/null || true
+    deb-systemd-invoke restart  nvr-prototype.service     >/dev/null || true
+    # Appliance / регистратор: маркер создаётся образом или вручную один раз.
+    if [ -f /etc/nvr-prototype/appliance ]; then
+        deb-systemd-helper enable seatd.service         >/dev/null || true
+        deb-systemd-helper enable nvr-kiosk.service     >/dev/null || true
+        deb-systemd-invoke try-restart seatd.service    >/dev/null || true
+        deb-systemd-invoke try-restart nvr-kiosk.service >/dev/null || true
+    fi
+fi
+
+exit 0

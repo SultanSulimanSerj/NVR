@@ -1,0 +1,12 @@
+[Unit]
+Description=NVR DB integrity check
+After=local-fs.target
+Before=nvr-prototype.service
+Wants=nvr-prototype.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nvr_db_check.sh
+
+[Install]
+WantedBy=multi-user.target

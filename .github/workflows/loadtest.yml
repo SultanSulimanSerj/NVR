@@ -1,0 +1,30 @@
+# Опциональный нагрузочный прогон (k6). Не блокирует merge по умолчанию.
+# Запуск: Actions → Load test (k6 smoke) → Run workflow.
+# Задайте vars.NVR_LOADTEST_BASE_URL (только origin, без пути API), например https://nvr-staging.example
+name: Load test (k6 smoke)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  k6:
+    runs-on: ubuntu-24.04
+    if: ${{ vars.NVR_LOADTEST_BASE_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Run k6 health smoke
+        env:
+          NVR_BASE_URL: ${{ vars.NVR_LOADTEST_BASE_URL }}
+        run: k6 run scripts/loadtest/k6-health.js

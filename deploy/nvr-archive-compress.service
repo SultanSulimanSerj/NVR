@@ -1,0 +1,9 @@
+[Unit]
+Description=NVR optional archive compress
+After=nvr-prototype.service
+
+[Service]
+Type=oneshot
+User=nvr
+Group=nvr
+ExecStart=/usr/bin/nvr_archive_compress.sh

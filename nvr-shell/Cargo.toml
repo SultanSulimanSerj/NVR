@@ -1,0 +1,9 @@
+[package]
+name = "nvr-shell"
+version = "0.1.0"
+edition = "2021"
+description = "Fullscreen WebKit shell for NVR appliance (Linux kiosk)"
+
+[dependencies]
+tao = "0.30"
+wry = "0.45"

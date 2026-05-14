@@ -1,0 +1,170 @@
+{
+  "app": { "name": "NVR", "offline": "Offline: API requests may fail until connectivity returns." },
+  "common": {
+    "save": "Save", "cancel": "Cancel", "edit": "Edit", "delete": "Delete",
+    "add": "Add", "all": "All", "search": "Search", "loading": "Loading...",
+    "saved": "Saved", "close": "Close"
+  },
+  "nav": {
+    "dashboard": "Dashboard", "live": "Live", "archive": "Archive", "events": "Events",
+    "cameras": "Cameras", "motion": "Motion", "storage": "Storage",
+    "map": "Map",
+    "notifications": "Notifications", "dlq": "Notify failures", "users": "Users", "system": "System",
+    "ai": "AI / Analytics", "audit": "Audit", "logout": "Logout"
+  },
+  "login": {
+    "title": "Sign in", "user": "Login", "password": "Password", "totp_optional": "TOTP (if enabled)",
+    "submit": "Sign in", "failed": "Invalid credentials"
+  },
+  "dash": {
+    "cameras": "Cameras", "active": "active", "events_24h": "Events",
+    "unack": "unacked", "archive_usage": "Archive", "uptime": "Uptime",
+    "recent_events": "Recent events", "cameras_status": "Cameras status",
+    "host_info": "Host", "license": "License"
+  },
+  "cameras": {
+    "name": "Name", "features": "Features", "add": "Add camera",
+    "edit_camera": "Camera", "preferred_hw": "HW accel",
+    "enable_motion": "Motion detection", "enable_recording": "Recording",
+    "recording_mode": "Recording mode",     "recording_continuous": "Continuous",
+    "recording_motion": "On motion (pre/post)",
+    "recording_hybrid": "Continuous + motion marking",
+    "enable_substream": "Sub-stream (HLS)", "sub_rtsp_url": "Sub RTSP URL",
+    "sub_bitrate": "Sub bitrate (kbps)", "confirm_delete": "Delete camera?",
+    "test": "Test", "unreachable": "Unreachable", "onvif_import": "ONVIF",
+    "onvif_discover": "ONVIF device discovery",
+    "nothing_found": "Nothing found",
+    "onvif_back": "Back to list",
+    "onvif_credentials": "ONVIF credentials",
+    "onvif_fetch_rtsp": "Fetch RTSP (GetStreamUri)",
+    "onvif_streams_title": "Profiles and URIs",
+    "onvif_use_best_pair": "Best + 2nd as sub-stream",
+    "onvif_use_main_only": "Main stream only",
+    "onvif_apply_form": "Open in edit form",
+    "onvif_create_now": "Create camera now",
+    "onvif_created": "Camera created",
+    "onvif_device_label": "Device",
+    "onvif_apply_best_main": "Open in form: best stream only",
+    "onvif_create_best_main": "Create: best stream only",
+    "onvif_fill_from_form_main": "Fill RTSP from ONVIF (best profile)",
+    "onvif_fill_from_form_pair": "Fill RTSP (best + 2nd as Sub)",
+    "onvif_host_required": "Set ONVIF host first",
+    "onvif_no_streams": "No streams returned — check reachability and credentials",
+    "onvif_urls_applied": "RTSP filled from ONVIF",
+    "onvif_sync_time": "Sync camera clock (ONVIF)",
+    "onvif_time_sync_ok": "SetSystemDateAndTime accepted (verify on device)",
+    "onvif_time_sync_fail": "Device rejected time set (NTP-only firmware?)",
+    "stream_stats": "Stream",
+    "stream_state_decode": "Decoding",
+    "stream_state_idle": "Idle / reconnect",
+    "stream_state_error": "Error / backoff",
+    "schedule_title": "Recording schedule",
+    "schedule_host_tz": "Windows use the server host local timezone (not UTC).",
+    "schedule_always": "24/7 (no weekly schedule)",
+    "schedule_no_windows": "No windows — no recording that day",
+    "schedule_start": "Start",
+    "schedule_end": "End",
+    "schedule_add_window": "Add window",
+    "schedule_remove_window": "Remove",
+    "schedule_badge": "Schedule",
+    "schedule_day": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    },
+    "catalog_title": "Compatibility catalog (JSON)",
+    "catalog_hint": "File: /etc/nvr-prototype/camera_catalog.json or env NVR_CAMERA_CATALOG_PATH. Sample: /usr/share/nvr-prototype/camera_catalog.sample.json",
+    "catalog_empty": "Catalog not loaded (missing file or empty array).",
+    "catalog_vendor": "Vendor",
+    "catalog_model": "Model",
+    "catalog_notes": "Notes"
+  },
+  "live_dash": {
+    "presets": "Grid layouts",
+    "save": "Save current",
+    "name_prompt": "Layout name",
+    "auto": "Auto",
+    "remove": "Remove"
+  },
+  "archive": {
+    "camera": "Camera", "from": "From", "to": "To", "started": "Started",
+    "duration": "Duration", "size": "Size", "motion": "Motion",
+    "play": "Play", "download": "Download", "export": "Export MP4",
+    "export_range": "Export range (MP4)", "export_range_done": "Range export file saved",
+    "empty": "No segments",
+    "timeline": "Activity over time", "timeline_empty": "No data in this window",
+    "timeline_hint": "Pick a specific camera and From/To to load the activity strip.",
+    "timeline_click_hint": "Click a bar to narrow the range to that bucket.",
+    "timeline_range_applied": "From/To updated from the selected bucket — search segments or export the range.",
+    "timeline_legend_motion": "Top: motion in segments; bottom: events from log",
+    "recent_clipped_events": "Events with clip (pick a camera)",
+    "jump_range": "Fit window ±45s",
+    "no_clipped_events": "No clipped events in this response"
+  },
+  "events": {
+    "time": "Time", "type": "Type", "severity": "Severity", "snapshot": "Snapshot",
+    "ack": "Ack", "ack_all": "Ack all", "has_clip": "Has clip"
+  },
+  "motion": {
+    "global": "Global parameters", "roi": "ROIs",
+    "start_poly": "Start polygon", "finish_poly": "Finish", "roi_name": "ROI name"
+  },
+  "storage": {
+    "quota": "Archive quota", "archive_usage": "Archive usage", "disks": "Disks",
+    "roots_health": "Archive roots (health)",
+    "root_exists_yes": "path ok",
+    "root_exists_no": "missing",
+    "root_writable_yes": "writable",
+    "root_writable_no": "not writable",
+    "root_free": "free"
+  },
+  "notify": {
+    "channels": "Channels", "rules": "Rules", "channel": "Channel", "rule": "Rule",
+    "test": "Test", "dlq_title": "Dead-letter queue (failed deliveries)"
+  },
+  "users": {
+    "add": "Add user", "reset_password": "Reset password",
+    "enable": "Enable", "disable": "Disable", "confirm_delete": "Delete?",
+    "my_account": "My account", "old_password": "Old password",
+    "new_password": "New password", "change_password": "Change password",
+    "totp": "Two-factor (TOTP)", "totp_setup": "Setup TOTP", "totp_code": "Code",
+    "totp_verify": "Verify", "password_too_short": "Password too short"
+  },
+  "system": {
+    "info": "Info", "network": "Network", "time": "Time",
+    "services": "Services", "logs": "Logs", "power": "Power", "license_tab": "License",
+    "field_bundle": "Download field bundle (JSON)"
+  },
+  "map": {
+    "floor_plan": "Floor plan",
+    "plan_background": "Plan background",
+    "plan_url_label": "Plan image URL",
+    "hint": "Set plan_x / plan_y on each camera (0..1). Negative values hide the marker.",
+    "empty": "No cameras with map coordinates."
+  },
+  "ai": {
+    "models": "Models", "faces": "Faces", "search": "Search", "enroll": "Enroll",
+    "object": "Object"
+  },
+  "errors": {
+    "license_channel_limit": "Camera license limit reached: max {{max}}, currently configured {{configured}}.",
+    "motion_recording_requires_enable_motion": "Motion-triggered recording requires motion detection to be enabled.",
+    "hybrid_requires_enable_motion": "Hybrid recording requires motion detection to be enabled (for segment marking and events).",
+    "license_mod_required": "AI module bit missing on the offline license (see docs/LICENSE_TICKET.md)."
+  },
+  "license": {
+    "mode": "Mode",
+    "modes": { "trial": "Trial", "licensed": "Licensed", "degraded": "License invalid" },
+    "max_channels": "Max cameras",
+    "configured": "Cameras in DB",
+    "modules": "Module bitmask",
+    "expires": "Expires",
+    "never": "no expiry",
+    "signature_ok": "Signature OK",
+    "doc_hint": "Offline ticket format and signing: docs/LICENSE_TICKET.md in the project repository."
+  }
+}
