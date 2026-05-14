@@ -12,9 +12,9 @@ while true; do
     break
   fi
   nn=$(pgrep -c -x ninja 2>/dev/null || echo 0)
-  cc=$(pgrep -c -E 'cc1plus|clang\+\+' 2>/dev/null || echo 0)
-  gh=$(pgrep -c git-remote-http 2>/dev/null || echo 0)
-  cm=$(pgrep -c -E 'cmake.*populate' 2>/dev/null || echo 0)
+  cc=$( (pgrep -fc cc1plus 2>/dev/null || echo 0) )
+  gh=$(pgrep -fc git-remote-http 2>/dev/null || echo 0)
+  cm=$(pgrep -fc 'cmake.*populate' 2>/dev/null || echo 0)
   echo "[watch] $ts ninja=$nn cc1plus_like=$cc git_remote_http=$gh cmake_populate=$cm"
   sleep "$INTERVAL"
 done
